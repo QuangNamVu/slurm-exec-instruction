@@ -1,0 +1,30 @@
+#!/bin/bash
+#SBATCH --job-name=multinode-random
+##SBATCH --nodes=2
+#SBATCH --nodelist=slurm-node[1-2]
+#SBATCH --ntasks=2
+#SBATCH --time=2:00:00
+#SBATCH --gpus-per-node=1
+#SBATCH -o /share-vl/namvq/logs/torch_dist_train/multinode-random.%N.%J.%u.out # STDOUT
+#SBATCH -e /share-vl/namvq/logs/torch_dist_train/multinode-random.%N.%J.%u.err # STDERR
+
+nodes=($(scontrol show hostnames $SLURM_JOB_NODELIST ) )
+nodes_array=($nodes)
+echo $nodes_array
+head_node=${nodes_array[0]}
+echo $head_node
+head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address | cut -d" " -f1)
+echo Master Node IP: $head_node_ip
+export LOGLEVEL=INFO
+
+srun git clone https://github.com/QuangNamVu/slurm-exec-instruction /tmp/slurm-exec-instruction
+
+srun apptainer run \
+    --nv --bind /tmp/slurm-exec-instruction/torch_dist_train/src/:/mnt \
+    docker://pytorch/pytorch:2.0.0-cuda11.7-cudnn8-devel \
+    torchrun --nnodes=2 \
+    --nproc_per_node=1 \
+    --rdzv_id=100 \
+    --rdzv_backend=c10d \
+    --rdzv_endpoint=$head_node_ip:29400 \
+    /mnt/rand_ddp.py --batch_size 128 --total_epochs 10000 --save_every 50
