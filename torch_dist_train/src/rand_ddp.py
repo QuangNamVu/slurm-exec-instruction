@@ -7,9 +7,6 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed import init_process_group, destroy_process_group
-from torchvision import datasets, transforms
-
-
 
 class MyTrainDataset(Dataset):
     def __init__(self, size):
@@ -21,20 +18,6 @@ class MyTrainDataset(Dataset):
     
     def __getitem__(self, index):
         return self.data[index]
-
-class MyMNISTDataset(Dataset):
-    def __init__(self, root, train=True, download=True, transform=None):
-        super(MyMNISTDataset, self).__init__()
-        self.transform = transform
-        self.data = datasets.MNIST(root=root, train=train, download=download, transform=self.transform)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        image, label = self.data[index]
-        return image, label
-
 
 def ddp_setup():
     init_process_group(backend="nccl")
@@ -112,34 +95,12 @@ class Trainer:
             if self.global_rank == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
 
+
 def load_train_objs(batch_size=2048):
-    # Download MNIST dataset if not already present
-    data_dir = "./mnist_data"
-    if not os.path.exists(data_dir):
-        # install curl and gunzip via apt-get"
-        install_cmd = "apt-get update && apt-get install -y curl gzip"
-        os.system(install_cmd)
-        os.makedirs(data_dir)
-        download_cmd = f"curl -LO https://www.yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz && curl -LO https://www.yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz && curl -LO https://www.yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz && curl -LO https://www.yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz"
-        os.system(download_cmd)
-        os.system("gunzip *.gz")
-
-  # Define data transforms (optional)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))  # Normalize MNIST data
-    ])
-
-    # Create MNIST datasets
-    train_set = MyMNISTDataset(root=data_dir, train=True, download=False, transform=transform)
-    test_set = MyMNISTDataset(root=data_dir, train=False, download=False, transform=transform)
-
-    # Define model and optimizer (replace with your model and optimizer)
-    model = torch.nn.Linear(28 * 28, 10)  # Adjust for MNIST image size (28x28)
+    train_set = MyTrainDataset(batch_size)  # load your dataset
+    model = torch.nn.Linear(20, 1)  # load your model
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-
-    return train_set, test_set, model, optimizer
-
+    return train_set, model, optimizer
 
 def prepare_dataloader(dataset: Dataset, batch_size: int):
     return DataLoader(
