@@ -21,7 +21,7 @@ class MyTrainDataset(Dataset):
 
 def ddp_setup(backend="nccl"):
     init_process_group(backend=backend)
-    print("using backend NCCL")
+    print(f"using backend {backend}")
     print("="*20)
     print(os.environ["LOCAL_RANK"])
     print("="*20)
@@ -110,7 +110,7 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
     )
 
 
-def main(save_every: int, total_epochs: int, batch_size: int, backend="gloo", delete_checkpoint=False, snapshot_path: str = "snapshot.pt"):
+def main(save_every: int, total_epochs: int, batch_size: int, backend="nccl", delete_checkpoint=False, snapshot_path: str = "snapshot.pt"):
     if delete_checkpoint:
         print("delete snapshot file")
         try:
@@ -128,7 +128,7 @@ def main(save_every: int, total_epochs: int, batch_size: int, backend="gloo", de
 if __name__ == "__main__":
     print("starting main")
     parser = argparse.ArgumentParser(description='simple distributed training job')
-    parser.add_argument('--backend', default="gloo", type=str, help='backend for torch distributed')
+    parser.add_argument('--backend', default="nccl", type=str, help='backend for torch distributed')
     parser.add_argument('--delete_checkpoint', default=True, type=int, help='delete checkpoint')
     parser.add_argument('--batch_size', default=2048, type=int, help='Input batch size on each device (default: 32)')
     parser.add_argument('--total_epochs', default=100, type=int, help='Total epochs to train the model')
